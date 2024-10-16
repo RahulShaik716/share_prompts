@@ -1,13 +1,68 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Form from "@components/Form";
+
 const UpdatePrompt = () => {
-  const [submitting, setsubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  // Initialize post state
+  const [post, setPost] = useState({
+    prompt: "",
+    tag: "",
+  });
+
+  const updatePrompt = async (e) => {
+    e.preventDefault(); // Prevents page reload
+    setSubmitting(true);
+
+    if (!promptId) {
+      alert("Prompt not found");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/prompt/${promptId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          prompt: post.prompt,
+          userId: session?.user.id,
+          tag: post.tag,
+        }),
+      });
+
+      if (res.ok) {
+        router.push("/");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Wrap the part using `useSearchParams()` in Suspense
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Content
+        post={post}
+        setPost={setPost}
+        submitting={submitting}
+        handleSubmit={updatePrompt}
+        session={session}
+      />
+    </Suspense>
+  );
+};
+
+// Split the component logic to avoid excessive rerendering
+const Content = ({ post, setPost, submitting, handleSubmit, session }) => {
   const searchParams = useSearchParams();
   const promptId = searchParams.get("id");
-  const { data: session } = useSession();
+
   useEffect(() => {
     const getPromptDetails = async () => {
       const response = await fetch(`/api/prompt/${promptId}`);
@@ -20,41 +75,13 @@ const UpdatePrompt = () => {
     if (promptId) getPromptDetails();
   }, [promptId]);
 
-  const [post, setPost] = useState({
-    prompt: "",
-    tag: "",
-  });
-  const router = useRouter();
-  const updatePrompt = async (e) => {
-    e.preventDefault(); //prevents reloads
-    setsubmitting(true);
-
-    if (!promptId) alert("Prompt Not found");
-    try {
-      const res = await fetch(`/api/prompt/${promptId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          prompt: post.prompt,
-          userId: session?.user.id,
-          tag: post.tag,
-        }),
-      });
-      if (res.ok) {
-        router.push("/");
-      }
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setsubmitting(false);
-    }
-  };
   return (
     <Form
       type="Edit"
       post={post}
       setPost={setPost}
       submitting={submitting}
-      handleSubmit={updatePrompt}
+      handleSubmit={handleSubmit}
     />
   );
 };
