@@ -26,6 +26,7 @@ const Feed = () => {
         cache: "no-store",
       });
       const data = await response.json();
+      console.log("data");
       setPosts(data);
     };
     console.log("fetching");
